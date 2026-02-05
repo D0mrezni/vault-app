@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SECURE VAULT v165 (TURBO IMPORT)</title>
+    
+    <script src="zip.min.js"></script>
+
+    <style>
+        /* --- СТИЛИ (Без изменений) --- */
+        :root { 
+            --bg: #008080; 
+            --glass-panel: rgba(220, 220, 220, 0.95); 
+            --glass-border: rgba(255, 255, 255, 0.8);
+            --blue: #004080; 
+            --accent: #ff8000; 
+            --root-bg: #e0e0e0;
+            --child-line: #666;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', 'Tahoma', sans-serif; font-size: 12px; outline: none; }
+        body { background: var(--bg); margin: 0; overflow: hidden; height: 100vh; display: flex; align-items: center; justify-content: center; user-select: none; }
+        #wall-layer { position: absolute; inset: 0; z-index: 0; background-image: radial-gradient(rgba(0,0,0,0.15) 1px, transparent 1px); background-size: 20px 20px; }
+        .wall-pin { position: absolute; cursor: grab; border: 2px solid #000; box-shadow: 6px 6px 0px rgba(0,0,0,0.5); background: #000; transition: transform 0.1s; }
+        body.editing-wall .wall-pin { border: 2px dashed #fff; z-index: 1000; }
+        .wall-pin:active { cursor: grabbing; transform: scale(1.02); }
+        .wall-pin img { width: 100%; height: 100%; display: block; pointer-events: none; object-fit: cover; }
+        #wall-hud { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 5000; display: none; gap: 4px; align-items: center; background: #c0c0c0; padding: 4px; border: 2px outset #fff; box-shadow: 2px 2px 5px #000; }
+        body.editing-wall #wall-hud { display: flex; }
+        #app { width: 98vw; height: 96vh; border: 1px solid #444; background: #d4d0c8; display: flex; flex-direction: column; position: relative; z-index: 10; box-shadow: 10px 10px 20px rgba(0,0,0,0.5); transition: all 0.3s ease-in-out; }
+        body.editing-wall #app { transform: scale(0.7) translateY(200px); opacity: 0.15; filter: grayscale(100%); pointer-events: none; border: 2px dashed #fff; }
+        .win-header { background: linear-gradient(90deg, var(--blue), #0066cc); color: #fff; padding: 5px 8px; display: flex; justify-content: space-between; font-weight: bold; text-shadow: 1px 1px 1px #000; font-size: 13px; }
+        .main-layout { display: flex; flex: 1; overflow: hidden; border-top: 1px solid #888; }
+        .sidebar { width: 280px; border-right: 1px solid #888; display: flex; flex-direction: column; background: #f0f0f0; }
+        .sidebar-scroll { flex: 1; overflow-y: auto; padding: 0; }
+        .section-header { font-weight: 800; padding: 8px; background: #ccc; color: #333; text-transform: uppercase; font-size: 11px; border-top: 1px solid #fff; border-bottom: 1px solid #999; cursor: default; }
+        .section-header.drag-over { background: #ffffcc; outline: 2px dashed #000; }
+        .tag-item { padding: 3px 6px; cursor: pointer; color: #000; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; transition: 0.1s; }
+        .tag-item.level-0 { background: linear-gradient(to bottom, #f9f9f9, #e6e6e6); border-bottom: 1px solid #bbb; font-weight: 700; color: #222; }
+        .tag-item.child-tag { padding-left: 20px; background: #fff; }
+        .tag-item.active { background: #004080 !important; color: #fff !important; }
+        .tree-icon { display: inline-block; width: 16px; text-align: center; margin-right: 4px; opacity: 0.7; }
+        .content-area { flex: 1; display: flex; flex-direction: column; background: #888; }
+        .toolbar { padding: 4px; display: flex; gap: 4px; border-bottom: 1px solid #666; background: #d4d0c8; }
+        .btn { background: #e0e0e0; border: 1px solid #fff; border-right-color: #666; border-bottom-color: #666; padding: 4px 12px; cursor: pointer; color: #000; font-weight: bold; font-size: 11px; }
+        .btn:active { border-style: inset; transform: translate(1px, 1px); }
+        .btn:hover { background: #fff; }
+        #main-view { flex: 1; overflow-y: auto; padding: 10px; background: #333; box-shadow: inset 2px 2px 5px #000; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+        .card { position: relative; aspect-ratio: 1; background: #000; border: 2px solid #555; cursor: pointer; transition: 0.1s; }
+        .card:hover { border-color: #fff; transform: scale(1.03); z-index: 5; }
+        .card img, .card video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+        .card.is-stack { border: 1px solid #888; box-shadow: 3px 3px 0 #444; margin: 0 6px 6px 0; }
+        .card.dragging { opacity: 0.5; border: 2px dashed #fff; }
+        .card.drag-target { border: 3px solid #00ff00 !important; box-shadow: 0 0 10px #00ff00; transform: scale(1.05); z-index: 20; }
+        .badge { position: absolute; top: 0; right: 0; background: #ffcc00; color: #000; padding: 1px 5px; font-weight: bold; font-size: 11px; border-left: 1px solid #000; border-bottom: 1px solid #000; }
+        .card-name { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: #fff; padding: 3px; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+        .chk { position: absolute; top: 5px; left: 5px; width: 16px; height: 16px; display: none; accent-color: var(--accent); }
+        body.mode-org .chk { display: block; }
+        .org-bar { display: none; background: #ffcc99; padding: 6px; border-bottom: 1px solid #888; justify-content: space-between; align-items: center; font-weight: bold; color: #440000; }
+        body.mode-org .org-bar { display: flex; }
+        #toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 10px 20px; border: 1px solid #fff; display: none; z-index: 7000; font-weight: bold; box-shadow: 4px 4px 0 #000; }
+        #progress-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 8000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); flex-direction: column; }
+        .progress-box { width: 400px; text-align: center; color: #0f0; font-family: monospace; text-shadow: 0 0 5px #0f0; background: #000; border: 2px solid #0f0; padding: 20px; box-shadow: 0 0 20px #0f0; }
+        .progress-bar-bg { width: 100%; height: 30px; background: #111; border: 2px solid #0f0; margin: 15px 0; position: relative; }
+        #progress-bar-fill { height: 100%; background: #0f0; width: 0%; transition: width 0.1s; }
+        #progress-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 4000; display: none; align-items: center; justify-content: center; }
+        .modal-win { width: 400px; background: #d4d0c8; border: 2px outset #fff; display: flex; flex-direction: column; max-height: 90vh; }
+        .modal-body { padding: 15px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+        #viewer { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 5000; display: none; flex-direction: column; }
+        #v-res { max-width: 100%; max-height: 85vh; border: 1px solid #fff; }
+        .v-nav { position: absolute; top: 0; bottom: 0; width: 15%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 60px; cursor: pointer; opacity: 0; transition: 0.2s; }
+        .v-nav:hover { background: rgba(255,255,255,0.1); }
+        input[type="text"] { width: 100%; padding: 4px; border: 2px inset #888; }
+        .picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; flex: 1; overflow-y: auto; background: #fff; border: 2px inset #888; padding: 5px; }
+        .picker-item { aspect-ratio: 1; border: 2px solid transparent; cursor: pointer; }
+        .picker-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; }
+        .picker-item.selected { border-color: var(--blue); background: var(--blue); }
+        .picker-item.selected img { opacity: 1; }
+        #sug-container { position: fixed; background: #fff; border: 2px solid #000; display: none; z-index: 9000; max-height: 200px; overflow-y: auto; }
+        .sug-item { padding: 5px; border-bottom: 1px solid #ccc; cursor: pointer; }
+        .sug-item:hover { background: #eee; }
+    </style>
+</head>
+<body onkeydown="if(vOpen) handleKeys(event)" onclick="closeCtx()">
+
+<div id="wall-layer"></div>
+<div id="wall-hud">
+    <button class="btn" onclick="document.getElementById('wall-up').click()">+ IMG</button>
+    <button class="btn" onclick="clearWall()">CLEAR</button>
+    <button class="btn" onclick="toggleWallMode()" style="background:var(--blue);color:#fff">DONE</button>
+</div>
+<input type="file" id="wall-up" hidden onchange="addWallPin(this.files[0])">
+
+<div id="toast">ACTION COMPLETED</div>
+
+<div id="progress-modal">
+    <div class="progress-box">
+        <div id="progress-title">PROCESSING...</div>
+        <div class="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+        <div id="progress-text">0%</div>
+    </div>
+</div>
+
+<div id="app">
+    <div class="win-header"><span>SECURE_VAULT_v165_TURBO</span><span id="db-status" style="color:lime">INIT...</span></div>
+    <div class="toolbar">
+        <button class="btn" onclick="document.getElementById('f-up').click()">📥 ADD</button>
+        <button class="btn" onclick="openNetModal()">🌐 WEB</button>
+        <button class="btn" onclick="toggleWallMode()">🎨 WALL</button>
+        <button class="btn" onclick="toggleOrg()">🛠 ORG</button>
+        <div style="flex-grow:1"></div>
+        <button class="btn" onclick="exportNative()" style="background:#ffdddd;border-color:#a00;color:#000">📦 SAVE (EXE)</button>
+        <label class="btn" for="f-in" style="background:#ddffdd;border-color:#0a0;color:#000;cursor:pointer">📂 LOAD (EXE)</label>
+        <button class="btn" onclick="wipeAll()" style="color:#f00;font-weight:900">💣</button>
+    </div>
+
+    <div class="org-bar">
+        <span id="sel-info">SELECTED: 0</span>
+        <div style="display:flex; gap:5px">
+            <button class="btn" onclick="groupSelected()">📚 GROUP</button>
+            <button class="btn" onclick="ungroupSelected()">🔓 UNGROUP</button>
+            <button class="btn" onclick="deleteSelected()">🗑 DELETE</button>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="sidebar">
+            <div style="display:flex; justify-content:space-between; padding:8px; background:#d4d0c8; border-bottom:1px solid #fff;">
+                <span style="font-weight:bold; color:#444">LIBRARY:</span>
+                <button class="btn" onclick="resetHierarchy()" style="padding:0 5px; font-size:10px;">RESET</button>
+            </div>
+            <div class="sidebar-scroll">
+                <div id="all-tag-container"></div>
+                <div class="section-header" ondrop="dropOnHeader(event, 'roots')" ondragover="allowDrop(event)">📂 ROOTS</div>
+                <div id="tree-list" class="tag-list"></div>
+                <div class="section-header" ondrop="dropOnHeader(event, 'general')" ondragover="allowDrop(event)">🏷️ TAGS</div>
+                <div id="general-list" class="tag-list"></div>
+            </div>
+        </div>
+        
+        <div class="content-area">
+            <div id="f-nav" style="padding:6px; background:#ddd; display:none; align-items:center; gap:10px; border-bottom:1px solid #999;">
+                <button class="btn" onclick="exitFolder()">⬅</button>
+                <span id="folder-name" style="font-weight:bold; flex-grow:1"></span>
+                <button class="btn" onclick="openFolderEditor()">EDIT</button>
+            </div>
+            <div style="padding:6px; background:#ccc; border-bottom:1px solid #999;">
+                <input type="text" id="searchBar" placeholder="Search..." oninput="curPage=1; render()" style="width:100%">
+            </div>
+            <div id="main-view"><div class="grid" id="main-grid"></div></div>
+            <div id="page-ctrl" style="padding:6px; display:flex; justify-content:center; gap:10px; background:#ddd; border-top:1px solid #999;">
+                <button class="btn" onclick="changePage(-1)">❮ PREV</button>
+                <span id="page-info" style="line-height:22px; font-weight:bold"></span>
+                <button class="btn" onclick="changePage(1)">NEXT ❯</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="context-menu" style="position:fixed;background:#f0f0f0;border:2px outset #fff;display:none;z-index:6000;flex-direction:column;min-width:150px"><div class="tag-item" onclick="ctxMoveToRoot()">📤 Move to Root</div></div>
+<div id="tag-modal" class="modal-overlay"><div class="modal-win"><div class="modal-body">Count: <b id="upload-count"></b><br>Tags:<input type="text" id="batch-tags"><br><button class="btn" onclick="confirmUpload()">OK</button><button class="btn" onclick="document.getElementById('tag-modal').style.display='none'">CANCEL</button></div></div></div>
+<div id="group-modal" class="modal-overlay"><div class="modal-win"><div class="modal-body">Name:<input type="text" id="group-input"><button class="btn" onclick="confirmGroup()">OK</button><button class="btn" onclick="document.getElementById('group-modal').style.display='none'">CANCEL</button></div></div></div>
+<div id="viewer"><div class="win-header"><span id="v-title"></span><button class="btn" onclick="closeV()">X</button></div><div style="flex:1; display:flex; align-items:center; justify-content:center; position:relative"><button class="v-nav" style="left:0" onclick="vNav(-1)">❮</button><div id="v-box"></div><button class="v-nav" style="right:0" onclick="vNav(1)">❯</button></div><div style="text-align:center; padding:10px"><input type="text" id="v-tags" style="width:400px"><button class="btn" onclick="vSave()">SAVE</button></div></div>
+<div id="net-modal" class="modal-overlay"><div class="modal-win"><div class="modal-body">URL:<input type="text" id="url-input"><button class="btn" onclick="downloadFromUrl()">DOWNLOAD</button><button class="btn" onclick="closeNetModal()">X</button></div></div></div>
+<div id="folder-edit-modal" class="modal-overlay"><div class="modal-win" style="width:500px; height:600px"><div class="win-header">EDIT <button class="btn" onclick="closeFolderEditor()">X</button></div><div class="modal-body"><input type="text" id="fe-tags-input"><button class="btn" onclick="saveFolderTags()">UPDATE</button><hr style="width:100%"><button class="btn" onclick="openFilePicker()">+ ADD FILES</button><div id="fe-list" class="edit-list"></div></div></div></div>
+<div id="file-picker-modal" class="modal-overlay"><div class="modal-win" style="width:600px; height:600px"><div class="win-header">PICKER <button class="btn" onclick="document.getElementById('file-picker-modal').style.display='none'">X</button></div><div class="modal-body"><div id="picker-list" class="picker-grid"></div><button class="btn" onclick="confirmPicker()">ADD SELECTED</button></div></div></div>
+<div id="sug-container"></div>
+
+<input type="file" id="f-up" multiple hidden>
+<input type="file" id="f-in" accept=".vault,.zip" hidden>
+
+<script>
+    // --- NODE.JS MODULES ---
+    let fs = null;
+    let ipcRenderer = null;
+    
+    try {
+        fs = require('fs');
+        ipcRenderer = require('electron').ipcRenderer;
+    } catch(e) {
+        console.error("Node.js not detected. Are you in Electron?");
+    }
+
+    if (typeof zip !== 'undefined') {
+        zip.configure({ useWebWorkers: false });
+    }
+
+    // --- GLOBAL HELPERS ---
+    function showToast(msg) {
+        const t = document.getElementById('toast'); 
+        t.innerText = msg; 
+        t.style.display = 'block'; 
+        setTimeout(() => { t.style.display = 'none'; }, 2000); 
+    }
+    
+    function cleanFolderName(n) {
+        return n.replace('set:', '').replace(/_id\d+$/, '');
+    }
+    
+    function showProgress(t, p) {
+        document.getElementById('progress-modal').style.display = 'flex'; 
+        document.getElementById('progress-title').innerText = t; 
+        document.getElementById('progress-bar-fill').style.width = p + '%'; 
+        document.getElementById('progress-text').innerText = Math.round(p) + '%'; 
+    }
+    
+    function hideProgress() {
+        document.getElementById('progress-modal').style.display = 'none';
+    }
+
+    // --- STATE VARIABLES ---
+    let db = null;
+    let all = [];
+    let sel = new Set();
+    let isOrg = false;
+    let vOpen = false;
+    let vList = [];
+    let vIdx = 0;
+    let curPage = 1;
+    let itemsPerPage = 40;
+    let activeTag = null;
+    let insideFolder = null;
+    let pendingFiles = [];
+    let dragSrcId = null;
+    let wallMode = false;
+    let activeURLs = [];
+    let tagMeta = { roots: [], general: [], parents: {}, children: {} };
+    let ctxTargetTag = null;
+    let pickerSel = new Set();
+
+    try { 
+        const storedMeta = localStorage.getItem('vault_meta_v4');
+        if (storedMeta) {
+            tagMeta = JSON.parse(storedMeta);
+        }
+    } catch(e) { 
+        console.log("Meta reset"); 
+    }
+
+    // --- DATABASE INIT ---
+    function initDB() {
+        return new Promise((res) => {
+            const req = indexedDB.open("SecureVaultPro", 3);
+            
+            req.onupgradeneeded = (e) => {
+                const d = e.target.result;
+                if (!d.objectStoreNames.contains("files")) {
+                    d.createObjectStore("files", { keyPath: "id", autoIncrement: true });
+                }
+                if (!d.objectStoreNames.contains("wall")) {
+                    d.createObjectStore("wall", { keyPath: "id" });
+                }
+            };
+            
+            req.onsuccess = (e) => { 
+                db = e.target.result; 
+                document.getElementById('db-status').innerText = "READY"; 
+                refresh(); 
+                loadWall(); 
+                initSuggestions(document.getElementById('searchBar')); 
+                initSuggestions(document.getElementById('batch-tags')); 
+                initSuggestions(document.getElementById('v-tags')); 
+                initSuggestions(document.getElementById('group-input')); 
+                initSuggestions(document.getElementById('fe-tags-input'));
+                res(true); 
+            };
+            
+            req.onerror = () => { 
+                document.getElementById('db-status').innerText = "DB ERROR"; 
+                document.getElementById('db-status').style.color = "red"; 
+            };
+        });
+    }
+
+    function refresh() {
+        if(!db) return;
+        const tx = db.transaction("files", "readonly");
+        const store = tx.objectStore("files");
+        store.getAll().onsuccess = (e) => {
+            all = (e.target.result || []).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+            updateSidebar(); 
+            render();
+        };
+    }
+
+    // --- NATIVE EXPORT (GHOSTBUSTER) ---
+    async function exportNative() {
+        try {
+            const savePath = await ipcRenderer.invoke('dialog:save');
+            if (!savePath) return;
+
+            showProgress("INITIALIZING...", 0);
+            const output = fs.createWriteStream(savePath);
+            
+            const zipWriter = new zip.ZipWriter({
+                write: (chunk) => new Promise(r => { 
+                    const ok = output.write(chunk); 
+                    if(ok) r(); 
+                    else output.once('drain', r); 
+                }),
+                close: () => new Promise(r => output.end(r))
+            }, { level: 0 });
+
+            // Manifest & Meta
+            const manifestData = JSON.stringify(all.map(x => ({...x, blob: null})));
+            await zipWriter.add("manifest.json", new zip.TextReader(manifestData));
+            
+            const metaData = JSON.stringify(tagMeta);
+            await zipWriter.add("metadata.json", new zip.TextReader(metaData));
+
+            // Files Loop
+            let processed = 0;
+            let skipped = 0;
+
+            for (const file of all) {
+                if (file && file.blob) {
+                    try {
+                        await zipWriter.add(`f_${file.id}`, new zip.BlobReader(file.blob));
+                    } catch (err) {
+                        console.warn("Corrupt blob found, skipping", file.id);
+                        skipped++;
+                    }
+                } else {
+                    console.warn("Ghost file found, skipping", file.id);
+                    skipped++;
+                }
+                
+                processed++;
+                if (processed % 20 === 0) {
+                    const pct = (processed / all.length) * 100;
+                    showProgress(`SAVING: ${processed}/${all.length}`, pct);
+                }
+            }
+
+            showProgress("FINALIZING...", 100);
+            await zipWriter.close();
+            hideProgress();
+            
+            if(skipped > 0) {
+                alert(`Saved! Skipped ${skipped} ghost files.`);
+            } else {
+                showToast("SAVED SUCCESSFULLY!");
+            }
+            
+        } catch(e) {
+            hideProgress();
+            alert("Export Error: " + e.message);
+        }
+    }
+
+    // --- TURBO IMPORT (BATCH MODE) ---
+    document.getElementById('f-in').onchange = async (e) => {
+        const fileObj = e.target.files[0]; 
+        if(!fileObj) return;
+        
+        showProgress("READING ARCHIVE...", 0);
+        
+        try {
+            const reader = new zip.ZipReader(new zip.BlobReader(fileObj));
+            const entries = await reader.getEntries();
+            
+            // Meta
+            const metaEntry = entries.find(e => e.filename === "metadata.json");
+            if (metaEntry) {
+                const metaStr = await metaEntry.getData(new zip.TextWriter());
+                localStorage.setItem('vault_meta_v4', metaStr);
+                tagMeta = JSON.parse(metaStr);
+            }
+
+            // Manifest
+            const manEntry = entries.find(e => e.filename === "manifest.json");
+            if (!manEntry) throw new Error("Invalid Archive");
+            
+            const manifestStr = await manEntry.getData(new zip.TextWriter());
+            const manifest = JSON.parse(manifestStr);
+            
+            const entryMap = new Map(entries.map(e => [e.filename, e]));
+            
+            // --- BATCH PROCESSING START ---
+            let count = 0;
+            const BATCH_SIZE = 50; // Process 50 files per transaction
+            
+            // Helper function to process a batch
+            const processBatch = async (batchItems) => {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction("files", "readwrite");
+                    const store = tx.objectStore("files");
+                    
+                    batchItems.forEach(item => {
+                        // Create a NEW item with a new ID to avoid collisions
+                        const newItem = {...item.data, blob: item.blob};
+                        delete newItem.id; 
+                        store.add(newItem);
+                    });
+                    
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = (e) => reject(e);
+                });
+            };
+
+            let currentBatch = [];
+            
+            for (const item of manifest) {
+                const fileEntry = entryMap.get(`f_${item.id}`);
+                if (fileEntry) {
+                    const blob = await fileEntry.getData(new zip.BlobWriter());
+                    currentBatch.push({ data: item, blob: blob });
+                    
+                    if (currentBatch.length >= BATCH_SIZE) {
+                        await processBatch(currentBatch);
+                        count += currentBatch.length;
+                        currentBatch = []; // Clear batch
+                        
+                        // Update Progress
+                        const pct = (count / manifest.length) * 100;
+                        showProgress(`IMPORTING: ${count}/${manifest.length}`, pct);
+                    }
+                }
+            }
+            
+            // Process remaining items
+            if (currentBatch.length > 0) {
+                await processBatch(currentBatch);
+                count += currentBatch.length;
+            }
+            // --- BATCH PROCESSING END ---
+
+            await reader.close();
+            hideProgress();
+            refresh();
+            showToast(`IMPORTED ${count} FILES!`);
+        } catch(e) {
+            hideProgress();
+            alert("Import Error: " + e.message);
+        }
+    };
+
+    // --- UI RENDERING ---
+    function updateSidebar() {
+        const counts = {}; 
+        all.forEach(item => {
+            (item.tags || []).forEach(t => { 
+                if (!t.startsWith('set:')) {
+                    counts[t] = (counts[t] || 0) + 1; 
+                }
+            });
+        });
+        
+        Object.keys(counts).forEach(t => { 
+            if (!tagMeta.roots.includes(t) && !tagMeta.general.includes(t) && !tagMeta.parents[t]) { 
+                if (t.startsWith('title:') || t.startsWith('char:')) {
+                    tagMeta.roots.push(t); 
+                } else {
+                    tagMeta.general.push(t); 
+                }
+            } 
+        });
+        
+        localStorage.setItem('vault_meta_v4', JSON.stringify(tagMeta));
+        
+        document.getElementById('all-tag-container').innerHTML = 
+            `<div class="tag-item level-0 ${!activeTag ? 'active' : ''}" onclick="filterTag(null)"><span>📦 ALL FILES</span><span>${all.length}</span></div>`;
+            
+        const treeRoot = document.getElementById('tree-list'); 
+        treeRoot.innerHTML = '';
+        
+        const genRoot = document.getElementById('general-list'); 
+        genRoot.innerHTML = '';
+        
+        renderRecursive(tagMeta.roots, treeRoot, 0, counts);
+        renderRecursive(tagMeta.general, genRoot, 0, counts);
+    }
+
+    function renderRecursive(list, dest, depth, counts) {
+        list.forEach(t => {
+            if (!counts[t]) return;
+            
+            const el = document.createElement('div');
+            el.className = `tag-item ${depth === 0 ? 'level-0' : 'child-tag'} ${activeTag === t ? 'active' : ''}`;
+            
+            const icon = depth === 0 ? '📂' : '↳';
+            const name = t.replace(/^(title:|char:)/, '');
+            
+            el.innerHTML = `
+                <div style="display:flex;align-items:center">
+                    <span class="tree-icon">${icon}</span>
+                    <span>${name}</span>
+                </div>
+                <span style="opacity:0.6;font-size:10px">${counts[t]}</span>
+            `;
+            
+            el.onclick = () => filterTag(t);
+            
+            el.draggable = true;
+            el.ondragstart = (e) => e.dataTransfer.setData('tag', t);
+            
+            el.ondragover = (e) => { 
+                e.preventDefault(); 
+                el.style.background = '#ffffcc'; 
+            };
+            
+            el.ondragleave = () => {
+                el.style.background = '';
+            };
+            
+            el.ondrop = (e) => { 
+                e.preventDefault(); 
+                el.style.background = ''; 
+                moveTag(e.dataTransfer.getData('tag'), t); 
+            };
+            
+            dest.appendChild(el);
+            
+            if (tagMeta.children[t]) { 
+                const childBox = document.createElement('div'); 
+                renderRecursive(tagMeta.children[t], childBox, depth + 1, counts); 
+                dest.appendChild(childBox); 
+            }
+        });
+    }
+
+    function moveTag(src, tgt) {
+        if (src === tgt) return;
+        
+        tagMeta.roots = tagMeta.roots.filter(x => x !== src); 
+        tagMeta.general = tagMeta.general.filter(x => x !== src);
+        
+        if (tagMeta.parents[src]) { 
+            let p = tagMeta.parents[src]; 
+            if (tagMeta.children[p]) {
+                tagMeta.children[p] = tagMeta.children[p].filter(x => x !== src); 
+            }
+        }
+        
+        tagMeta.parents[src] = tgt; 
+        if (!tagMeta.children[tgt]) {
+            tagMeta.children[tgt] = []; 
+        }
+        tagMeta.children[tgt].push(src); 
+        
+        updateSidebar();
+    }
+
+    function dropOnHeader(e, listName) { 
+        e.preventDefault(); 
+        let t = e.dataTransfer.getData('tag'); 
+        
+        if (tagMeta.parents[t]) { 
+            let p = tagMeta.parents[t]; 
+            if (tagMeta.children[p]) {
+                tagMeta.children[p] = tagMeta.children[p].filter(x => x !== t); 
+            }
+            delete tagMeta.parents[t]; 
+        } 
+        
+        tagMeta.roots = tagMeta.roots.filter(x => x !== t); 
+        tagMeta.general = tagMeta.general.filter(x => x !== t); 
+        
+        if (listName === 'roots') tagMeta.roots.push(t);
+        else tagMeta.general.push(t);
+        
+        updateSidebar(); 
+    }
+
+    function allowDrop(e) { e.preventDefault(); }
+
+    function filterTag(t) { 
+        activeTag = t; 
+        insideFolder = null; 
+        curPage = 1; 
+        render(); 
+    }
+    
+    function render() {
+        activeURLs.forEach(u => URL.revokeObjectURL(u)); 
+        activeURLs = [];
+        
+        const grid = document.getElementById('main-grid');
+        const q = document.getElementById('searchBar').value.toLowerCase();
+        
+        document.getElementById('f-nav').style.display = 'none'; 
+        document.getElementById('page-ctrl').style.display = 'none'; 
+        grid.innerHTML = '';
+        
+        let raw = all.filter(f => {
+            if (activeTag && !(f.tags || []).includes(activeTag)) return false;
+            
+            if (q) {
+                const nameMatch = f.name.toLowerCase().includes(q);
+                const tagMatch = (f.tags || []).some(t => t.toLowerCase().includes(q));
+                if (!nameMatch && !tagMatch) return false;
+            }
+            return true;
+        });
+
+        let list = [];
+        
+        if (insideFolder) {
+            document.getElementById('f-nav').style.display = 'flex';
+            document.getElementById('folder-name').innerText = "📂 " + cleanFolderName(insideFolder);
+            
+            list = raw.filter(f => (f.tags || []).includes(insideFolder))
+                      .sort((a,b) => (a.order || 0) - (b.order || 0))
+                      .map(d => ({type: 'file', data: d}));
+            
+            document.getElementById('page-ctrl').style.display = 'none';
+        } else {
+            document.getElementById('f-nav').style.display = 'none';
+            document.getElementById('page-ctrl').style.display = 'flex';
+            
+            let sets = {}; 
+            let singles = [];
+            
+            raw.forEach(f => { 
+                const s = (f.tags || []).find(t => t.startsWith('set:')); 
+                if (s) {
+                    if (!sets[s]) sets[s] = [];
+                    sets[s].push(f);
+                } else {
+                    singles.push(f); 
+                }
+            });
+            
+            list = singles.map(d => ({type: 'file', data: d}));
+            
+            Object.keys(sets).forEach(k => {
+                sets[k].sort((a,b) => (a.order || 0) - (b.order || 0));
+                list.push({
+                    type: 'stack', 
+                    name: k, 
+                    items: sets[k], 
+                    data: sets[k][0] 
+                });
+            });
+            
+            list.sort((a,b) => (b.data.createdAt || 0) - (a.data.createdAt || 0));
+        }
+
+        document.getElementById('page-info').innerText = `${curPage}/${Math.ceil(list.length/itemsPerPage) || 1}`;
+        let pageData = list.slice((curPage - 1) * itemsPerPage, curPage * itemsPerPage);
+
+        pageData.forEach(item => {
+            const card = document.createElement('div'); 
+            const u = URL.createObjectURL(item.data.blob); 
+            activeURLs.push(u);
+            
+            card.className = `card ${item.type === 'stack' ? 'is-stack' : ''}`;
+            
+            let html = '';
+            if (item.type === 'stack') {
+                html += `<div class="badge">${item.items.length}</div>`;
+            }
+            
+            if (item.data.type.includes('video')) {
+                html += `<div class="vid-badge">VID</div><video src="${u}#t=0.1" muted></video>`;
+            } else {
+                html += `<img src="${u}" loading="lazy">`;
+            }
+            
+            const checked = sel.has(item.data.id) ? 'checked' : '';
+            html += `<input type="checkbox" class="chk" ${checked}>`;
+            
+            const name = item.type === 'stack' ? cleanFolderName(item.name) : item.data.name;
+            html += `<div class="card-name">${name}</div>`;
+            
+            card.innerHTML = html;
+            
+            const chk = card.querySelector('.chk');
+            chk.onclick = (e) => {
+                e.stopPropagation();
+                toggleSel(item.data.id);
+            };
+            
+            card.onclick = () => { 
+                if (isOrg) {
+                    toggleSel(item.data.id);
+                    chk.checked = !chk.checked;
+                } else if (item.type === 'stack') { 
+                    insideFolder = item.name; 
+                    render(); 
+                } else {
+                    const fileList = pageData.filter(x => x.type === 'file').map(x => x.data);
+                    const idx = fileList.indexOf(item.data);
+                    if (idx !== -1) openV(fileList, idx);
+                }
+            };
+            
+            if (insideFolder) {
+                card.draggable = true;
+                card.ondragstart = (e) => { 
+                    dragSrcId = item.data.id; 
+                    e.target.classList.add('dragging'); 
+                };
+                card.ondragover = (e) => { 
+                    e.preventDefault(); 
+                    e.currentTarget.classList.add('drag-target'); 
+                };
+                card.ondragleave = (e) => {
+                    e.currentTarget.classList.remove('drag-target');
+                };
+                card.ondrop = (e) => { 
+                    e.preventDefault(); 
+                    e.currentTarget.classList.remove('drag-target'); 
+                    reorderInDB(dragSrcId, item.data.id); 
+                };
+            }
+            
+            grid.appendChild(card);
+        });
+    }
+
+    function reorderInDB(srcId, tgtId) { 
+        if (!insideFolder) return; 
+        
+        const folderFiles = all.filter(f => (f.tags || []).includes(insideFolder))
+                               .sort((a,b) => (a.order || 0) - (b.order || 0));
+                               
+        const sIdx = folderFiles.findIndex(x => x.id === srcId);
+        const tIdx = folderFiles.findIndex(x => x.id === tgtId); 
+        
+        if (sIdx < 0 || tIdx < 0) return; 
+        
+        const [moved] = folderFiles.splice(sIdx, 1); 
+        folderFiles.splice(tIdx, 0, moved); 
+        
+        const tx = db.transaction("files", "readwrite");
+        const s = tx.objectStore("files"); 
+        
+        folderFiles.forEach((f, i) => { 
+            f.order = i; 
+            s.put(f); 
+        }); 
+        
+        tx.oncomplete = refresh; 
+    }
+
+    // --- SELECTION & GROUPING ---
+    function toggleSel(id) { 
+        if (sel.has(id)) sel.delete(id); 
+        else sel.add(id); 
+        document.getElementById('sel-info').innerText = `SEL: ${sel.size}`; 
+    }
+
+    function toggleOrg() { 
+        isOrg = !isOrg; 
+        document.body.classList.toggle('mode-org', isOrg); 
+        sel.clear(); 
+        document.getElementById('sel-info').innerText = "SEL: 0";
+    }
+
+    function changePage(d) { 
+        curPage = Math.max(1, curPage + d); 
+        render(); 
+    }
+
+    function exitFolder() { 
+        insideFolder = null; 
+        render(); 
+    }
+
+    function wipeAll() { 
+        if (confirm("WIPE DATABASE?")) { 
+            indexedDB.deleteDatabase("SecureVaultPro"); 
+            location.reload(); 
+        } 
+    }
+
+    function openCtx(e, tag) { 
+        e.preventDefault(); 
+        ctxTargetTag = tag; 
+        const cm = document.getElementById('context-menu'); 
+        cm.style.display = 'flex'; 
+        cm.style.left = e.clientX + 'px'; 
+        cm.style.top = e.clientY + 'px'; 
+    }
+
+    function closeCtx() {
+        document.getElementById('context-menu').style.display = 'none';
+    }
+
+    function ctxMoveToRoot() { 
+        if (ctxTargetTag) unNestTag(ctxTargetTag); 
+        closeCtx(); 
+    }
+    
+    function unNestTag(tag) {
+        removeTagFromOldPos(tag);
+        if (tag.startsWith('title:') || tag.startsWith('char:')) {
+            tagMeta.roots.unshift(tag);
+        } else {
+            tagMeta.general.unshift(tag);
+        }
+        saveMeta();
+    }
+    
+    function removeTagFromOldPos(tag) {
+        tagMeta.roots = tagMeta.roots.filter(t => t !== tag);
+        tagMeta.general = tagMeta.general.filter(t => t !== tag);
+        
+        const oldParent = tagMeta.parents[tag];
+        if (oldParent && tagMeta.children[oldParent]) {
+            tagMeta.children[oldParent] = tagMeta.children[oldParent].filter(t => t !== tag);
+        }
+        delete tagMeta.parents[tag];
+    }
+
+    // --- UPLOAD HANDLERS ---
+    document.getElementById('f-up').onchange = (e) => {
+        if (e.target.files.length === 0) return;
+        pendingFiles = Array.from(e.target.files);
+        e.target.value = ''; 
+        document.getElementById('upload-count').innerText = pendingFiles.length;
+        document.getElementById('tag-modal').style.display = 'flex';
+        document.getElementById('batch-tags').focus();
+    };
+
+    function confirmUpload() { 
+        const tags = document.getElementById('batch-tags').value.split(',').map(x => x.trim()).filter(x => x); 
+        const tx = db.transaction("files", "readwrite"); 
+        const s = tx.objectStore("files"); 
+        const now = Date.now(); 
+        
+        pendingFiles.forEach(f => {
+            s.add({
+                blob: f, 
+                name: f.name, 
+                type: f.type, 
+                tags: tags, 
+                createdAt: now
+            });
+        }); 
+        
+        tx.oncomplete = () => { 
+            document.getElementById('tag-modal').style.display = 'none'; 
+            refresh(); 
+        }; 
+    }
+
+    function groupSelected() { 
+        if (sel.size < 2) return alert("Select 2+"); 
+        document.getElementById('group-modal').style.display = 'flex'; 
+    }
+
+    function confirmGroup() { 
+        const name = document.getElementById('group-input').value; 
+        if (!name) return; 
+        
+        const setTag = `set:${name}_id${Date.now()}`; 
+        const tx = db.transaction("files", "readwrite"); 
+        const s = tx.objectStore("files"); 
+        
+        Array.from(sel).forEach((id, i) => { 
+            s.get(id).onsuccess = (e) => { 
+                const f = e.target.result; 
+                f.tags = [...new Set([...(f.tags || []), setTag, name])]; 
+                f.order = i; 
+                s.put(f); 
+            }; 
+        }); 
+        
+        tx.oncomplete = () => { 
+            document.getElementById('group-modal').style.display = 'none'; 
+            toggleOrg(); 
+            refresh(); 
+        }; 
+    }
+
+    function ungroupSelected() { 
+        const tx = db.transaction("files", "readwrite"); 
+        const s = tx.objectStore("files"); 
+        
+        sel.forEach(id => {
+            s.get(id).onsuccess = (e) => { 
+                const f = e.target.result; 
+                f.tags = f.tags.filter(t => !t.startsWith('set:')); 
+                delete f.order; 
+                s.put(f); 
+            };
+        }); 
+        
+        tx.oncomplete = () => { 
+            toggleOrg(); 
+            refresh(); 
+        }; 
+    }
+
+    function deleteSelected() { 
+        if (!confirm("Delete selected?")) return; 
+        const tx = db.transaction("files", "readwrite"); 
+        const s = tx.objectStore("files"); 
+        sel.forEach(id => s.delete(id)); 
+        tx.oncomplete = () => { 
+            toggleOrg(); 
+            refresh(); 
+        }; 
+    }
+    
+    // --- WALL FUNCTIONALITY ---
+    function loadWall() { 
+        db.transaction("wall").objectStore("wall").getAll().onsuccess = (e) => { 
+            document.getElementById('wall-layer').innerHTML = ''; 
+            e.target.result.forEach(createPinElement); 
+        }; 
+    }
+
+    function addWallPin(f) { 
+        const r = new FileReader(); 
+        r.onload = (e) => { 
+            const p = {
+                id: Date.now(), 
+                src: e.target.result, 
+                x: window.innerWidth / 2, 
+                y: window.innerHeight / 2, 
+                w: 200
+            }; 
+            const tx = db.transaction("wall", "readwrite");
+            tx.objectStore("wall").add(p); 
+            createPinElement(p); 
+        }; 
+        r.readAsDataURL(f); 
+    }
+
+    function createPinElement(p) { 
+        const el = document.createElement('div'); 
+        el.className = 'wall-pin'; 
+        el.style.left = p.x + 'px'; 
+        el.style.top = p.y + 'px'; 
+        el.style.width = p.w + 'px'; 
+        el.innerHTML = `<img src="${p.src}">`; 
+        
+        el.onmousedown = (e) => { 
+            if (!wallMode) return; 
+            let sx = e.clientX - el.offsetLeft; 
+            let sy = e.clientY - el.offsetTop; 
+            
+            document.onmousemove = (em) => { 
+                el.style.left = (em.clientX - sx) + 'px'; 
+                el.style.top = (em.clientY - sy) + 'px'; 
+            }; 
+            
+            document.onmouseup = () => { 
+                document.onmousemove = null; 
+                updatePin(p.id, { x: parseInt(el.style.left), y: parseInt(el.style.top) }); 
+            }; 
+        }; 
+        
+        el.onwheel = (e) => { 
+            if (!wallMode) return; 
+            e.preventDefault(); 
+            let nw = Math.max(50, el.offsetWidth + (e.deltaY > 0 ? -20 : 20)); 
+            el.style.width = nw + 'px'; 
+            updatePin(p.id, { w: nw }); 
+        }; 
+        
+        el.ondblclick = () => { 
+            if (wallMode && confirm("Delete pin?")) { 
+                const tx = db.transaction("wall", "readwrite");
+                tx.objectStore("wall").delete(p.id); 
+                el.remove(); 
+            } 
+        }; 
+        
+        document.getElementById('wall-layer').appendChild(el); 
+    }
+
+    function updatePin(id, data) { 
+        const tx = db.transaction("wall", "readwrite"); 
+        const s = tx.objectStore("wall"); 
+        s.get(id).onsuccess = (e) => { 
+            if (e.target.result) {
+                Object.assign(e.target.result, data); 
+                s.put(e.target.result); 
+            }
+        }; 
+    }
+
+    function clearWall() {
+        if (confirm("Clear Wall?")) {
+            const tx = db.transaction("wall", "readwrite");
+            tx.objectStore("wall").clear().onsuccess = () => {
+                document.getElementById('wall-layer').innerHTML = '';
+            };
+        }
+    }
+
+    function toggleWallMode() { 
+        wallMode = !wallMode; 
+        document.body.classList.toggle('editing-wall', wallMode); 
+    }
+
+    // --- VIEWER ---
+    function openV(list, index) { 
+        vList = list; 
+        vIdx = index; 
+        vOpen = true; 
+        document.getElementById('viewer').style.display = 'flex'; 
+        showV(); 
+    }
+
+    function showV() { 
+        const f = vList[vIdx]; 
+        const u = URL.createObjectURL(f.blob); 
+        const box = document.getElementById('v-box');
+        
+        if (f.type.includes('video')) {
+            box.innerHTML = `<video src="${u}" controls autoplay loop style="max-width:100%;max-height:85vh"></video>`;
+        } else {
+            box.innerHTML = `<img src="${u}" style="max-width:100%;max-height:85vh">`;
+        }
+        
+        document.getElementById('v-title').innerText = `${vIdx + 1}/${vList.length}`; 
+        document.getElementById('v-tags').value = (f.tags || []).join(', '); 
+    }
+
+    function vNav(d) { 
+        vIdx = (vIdx + d + vList.length) % vList.length; 
+        showV(); 
+    }
+
+    function vSave() { 
+        const f = vList[vIdx]; 
+        f.tags = document.getElementById('v-tags').value.split(',').filter(x => x); 
+        
+        const tx = db.transaction("files", "readwrite");
+        tx.objectStore("files").put(f).oncomplete = () => {
+            refresh();
+            showToast("UPDATED");
+        }; 
+    }
+
+    function closeV() { 
+        document.getElementById('viewer').style.display = 'none'; 
+        document.getElementById('v-box').innerHTML = ''; 
+        vOpen = false; 
+    }
+
+    function handleKeys(e) { 
+        if (document.activeElement.tagName === 'INPUT') return; 
+        if (e.key === 'ArrowLeft') vNav(-1); 
+        if (e.key === 'ArrowRight') vNav(1); 
+        if (e.key === 'Escape') closeV(); 
+    }
+
+    // --- MODALS & EXTRAS ---
+    function openNetModal() { 
+        document.getElementById('net-modal').style.display = 'flex'; 
+    }
+    
+    function closeNetModal() { 
+        document.getElementById('net-modal').style.display = 'none'; 
+    }
+
+    async function downloadFromUrl() { 
+        const url = document.getElementById('url-input').value.trim(); 
+        if (!url) return; 
+        
+        showToast("DOWNLOADING..."); 
+        try { 
+            const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`); 
+            if (!res.ok) throw new Error("Err"); 
+            
+            const blob = await res.blob(); 
+            const tx = db.transaction("files", "readwrite"); 
+            
+            tx.objectStore("files").add({ 
+                blob: blob, 
+                name: `web_${Date.now()}.jpg`, 
+                type: blob.type, 
+                tags: ['web'], 
+                createdAt: Date.now() 
+            }); 
+            
+            tx.oncomplete = () => { 
+                showToast("SAVED!"); 
+                closeNetModal(); 
+                refresh(); 
+            }; 
+        } catch(e) { 
+            showToast("FAILED"); 
+        } 
+    }
+
+    function openFilePicker() { 
+        pickerSel.clear(); 
+        document.getElementById('file-picker-modal').style.display = 'flex'; 
+        renderPickerList(); 
+    }
+    
+    function closeFilePicker() { 
+        document.getElementById('file-picker-modal').style.display = 'none'; 
+    }
+
+    function renderPickerList() { 
+        const listEl = document.getElementById('picker-list'); 
+        listEl.innerHTML = ''; 
+        
+        const available = all.filter(f => !(f.tags || []).some(t => t.startsWith('set:')))
+                             .sort((a,b) => b.createdAt - a.createdAt);
+                             
+        available.forEach(f => { 
+            const div = document.createElement('div'); 
+            div.className = `picker-item ${pickerSel.has(f.id) ? 'selected' : ''}`; 
+            
+            const url = URL.createObjectURL(f.blob); 
+            div.innerHTML = `<img src="${url}"><div class="picker-chk">☑</div>`; 
+            
+            div.onclick = () => { 
+                if (pickerSel.has(f.id)) pickerSel.delete(f.id); 
+                else pickerSel.add(f.id); 
+                renderPickerList(); 
+            }; 
+            listEl.appendChild(div); 
+        }); 
+    }
+
+    function confirmPicker() { 
+        if (pickerSel.size === 0) return closeFilePicker(); 
+        
+        const folderItems = all.filter(i => (i.tags || []).includes(insideFolder)); 
+        let maxOrder = folderItems.length ? Math.max(...folderItems.map(i => i.order || 0)) : -1; 
+        
+        const tx = db.transaction("files", "readwrite"); 
+        const s = tx.objectStore("files"); 
+        
+        pickerSel.forEach(id => { 
+            s.get(id).onsuccess = (e) => { 
+                const i = e.target.result; 
+                if (i) { 
+                    i.tags = [...new Set([...(i.tags || []), insideFolder])]; 
+                    maxOrder++; 
+                    i.order = maxOrder; 
+                    s.put(i); 
+                } 
+            }; 
+        }); 
+        
+        tx.oncomplete = () => { 
+            closeFilePicker(); 
+            refresh(); 
+            showToast("MOVED TO FOLDER"); 
+        }; 
+    }
+
+    function openFolderEditor() { 
+        if (!insideFolder) return; 
+        document.getElementById('folder-edit-modal').style.display = 'flex'; 
+        renderFolderEditorList(); 
+        
+        const f = all.filter(i => (i.tags || []).includes(insideFolder))[0]; 
+        if (f) {
+            const visibleTags = (f.tags || []).filter(t => !t.startsWith('set:')).join(', ');
+            document.getElementById('fe-tags-input').value = visibleTags; 
+        }
+    }
+    
+    function closeFolderEditor() { 
+        document.getElementById('folder-edit-modal').style.display = 'none'; 
+        refresh(); 
+    }
+
+    function renderFolderEditorList() { 
+        const el = document.getElementById('fe-list'); 
+        el.innerHTML = ''; 
+        
+        all.filter(i => (i.tags || []).includes(insideFolder))
+           .sort((a,b) => (a.order || 0) - (b.order || 0))
+           .forEach(f => { 
+               const d = document.createElement('div'); 
+               d.className = 'edit-item'; 
+               const u = URL.createObjectURL(f.blob); 
+               
+               d.innerHTML = `
+                   <img src="${u}" class="edit-thumb">
+                   <div class="edit-info"><div class="edit-name">${f.name}</div></div>
+                   <div class="edit-actions">
+                       <button class="btn btn-sm btn-ungroup" onclick="ungroupItem(${f.id})">UNGROUP</button>
+                       <button class="btn btn-sm btn-del" onclick="deleteItem(${f.id})">DEL</button>
+                   </div>
+               `; 
+               el.appendChild(d); 
+           }); 
+    }
+
+    function ungroupItem(id) { 
+        const tx = db.transaction("files", "readwrite"); 
+        const s = tx.objectStore("files"); 
+        s.get(id).onsuccess = (e) => { 
+            const i = e.target.result; 
+            if (i) { 
+                i.tags = i.tags.filter(t => t !== insideFolder); 
+                s.put(i); 
+            }
+        }; 
+        tx.oncomplete = () => { 
+            refresh(); 
+            setTimeout(renderFolderEditorList, 100); 
+        }; 
+    }
+
+    function deleteItem(id) { 
+        if (!confirm("Del?")) return; 
+        const tx = db.transaction("files", "readwrite"); 
+        tx.objectStore("files").delete(id); 
+        tx.oncomplete = () => { 
+            refresh(); 
+            setTimeout(renderFolderEditorList, 100); 
+        }; 
+    }
+
+    function saveFolderTags() { 
+        const raw = document.getElementById('fe-tags-input').value; 
+        const nt = raw.split(',').map(t => t.trim()).filter(t => t); 
+        const ff = all.filter(i => (i.tags || []).includes(insideFolder)); 
+        
+        const tx = db.transaction("files", "readwrite"); 
+        const s = tx.objectStore("files"); 
+        
+        ff.forEach(f => { 
+            const os = (f.tags || []).filter(t => t.startsWith('set:') && t !== insideFolder); 
+            f.tags = [...os, insideFolder, ...nt]; 
+            s.put(f); 
+        }); 
+        
+        tx.oncomplete = () => { 
+            refresh(); 
+            showToast("UPDATED"); 
+        }; 
+    }
+
+    function initSuggestions(inputEl) { 
+        const container = document.getElementById('sug-container'); 
+        if (!inputEl) return; 
+        
+        inputEl.addEventListener('input', (e) => { 
+            const val = e.target.value; 
+            const parts = val.split(',').map(p => p.trim()); 
+            const lastPart = parts[parts.length - 1].toLowerCase(); 
+            
+            if (lastPart.length < 1) { 
+                container.style.display = 'none'; 
+                return; 
+            } 
+            
+            const matches = getUniqueTags().filter(t => t.toLowerCase().startsWith(lastPart) && !parts.includes(t)); 
+            
+            if (matches.length > 0) { 
+                const rect = inputEl.getBoundingClientRect(); 
+                container.style.display = 'block'; 
+                container.style.left = rect.left + 'px'; 
+                container.style.width = rect.width + 'px'; 
+                container.style.top = rect.bottom + 'px'; 
+                
+                container.innerHTML = matches.map(m => `<div class="sug-item">${m}</div>`).join(''); 
+                
+                container.querySelectorAll('.sug-item').forEach(item => { 
+                    item.onclick = () => { 
+                        parts[parts.length - 1] = item.innerText; 
+                        inputEl.value = parts.join(', ') + ', '; 
+                        container.style.display = 'none'; 
+                        inputEl.focus(); 
+                        if (inputEl.id === 'searchBar') render(); 
+                    }; 
+                }); 
+            } else { 
+                container.style.display = 'none'; 
+            } 
+        }); 
+        
+        document.addEventListener('click', (e) => { 
+            if (e.target !== inputEl) container.style.display = 'none'; 
+        }); 
+    }
+    
+    function getUniqueTags() { 
+        const tags = new Set(); 
+        all.forEach(i => (i.tags || []).forEach(t => { 
+            if (!t.startsWith('set:')) tags.add(t); 
+        })); 
+        return Array.from(tags).sort(); 
+    }
+    
+    const resetHierarchy = () => { if(confirm("Fix Stuck Tree?")) { localStorage.removeItem('vault_meta_v4'); tagMeta = { roots: [], general: [], parents: {}, children: {} }; updateSidebar(); showToast("TREE FIXED"); } };
+
+    // Initialize
+    document.addEventListener('paste', (e) => {
+        const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                if (wallMode) { addWallPin(blob); showToast("PASTED TO WALL"); }
+                else {
+                    const tx = db.transaction("files", "readwrite");
+                    tx.objectStore("files").add({ blob: blob, name: `clip_${Date.now()}.png`, type: blob.type, tags: ['clipboard'], createdAt: Date.now() });
+                    tx.oncomplete = () => { refresh(); showToast("PASTED TO VAULT"); };
+                }
+            }
+        }
+    });
+
+    initDB();
+</script>
+</body>
+</html>

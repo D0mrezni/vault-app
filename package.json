@@ -1,0 +1,17 @@
+{
+  "name": "secure-vault-pro",
+  "version": "1.5.4",
+  "description": "Secure Vault Desktop Edition",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-packager . SecureVault --platform=win32 --arch=x64 --overwrite"
+  },
+  "keywords": [],
+  "author": "User",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-packager": "^17.1.2"
+  }
+}
