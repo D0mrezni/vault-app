@@ -1,4 +1,4 @@
-name: Fresh Build APK
+name: Final Rescue Build
 on: [push, workflow_dispatch]
 
 jobs:
@@ -7,40 +7,41 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Setup Java
+      - name: Setup Environment
         uses: actions/setup-java@v3
         with:
           java-version: '17'
           distribution: 'zulu'
 
-      - name: Build from Scratch
-        run: |
-          # 1. Создаем чистую папку для сборки, чтобы не конфликтовать с вашими файлами
-          mkdir -p fresh_build
-          cd fresh_build
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
-          # 2. Инициализируем новый проект
+      - name: Clean and Build
+        run: |
+          # 1. Очистка: удаляем следы прошлых неудачных попыток
+          rm -rf android node_modules package-lock.json capacitor.config.* www
+
+          # 2. Подготовка файлов сайта
+          mkdir www
+          # Копируем файлы (команда '|| true' не дает скрипту упасть, если файлов нет)
+          cp *.html www/ 2>/dev/null || true
+          cp *.js www/ 2>/dev/null || true
+          cp *.css www/ 2>/dev/null || true
+          cp *.json www/ 2>/dev/null || true
+          
+          # Удаляем package.json из папки www, чтобы он не мешал
+          rm www/package.json 2>/dev/null || true
+
+          # 3. Установка "мозгов" (Capacitor) с нуля
           npm init -y
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
-          # 3. Создаем папку для сайта и копируем туда ВАШИ файлы из корня
-          mkdir www
-          # Копируем файлы из корня (../) в папку www
-          cp ../*.html ../*.js ../*.css ../*.json www/ 2>/dev/null || :
-          
-          # Удаляем package.json из папки www, чтобы не мешал (мы используем свой новый)
-          rm www/package.json 2>/dev/null || :
-
-          # 4. Настраиваем Capacitor
+          # 4. Настройка Android-проекта
           npx cap init MyVaultApp com.vault.app --web-dir www --npm-client npm
           npx cap add android
 
-          # 5. Собираем
+          # 5. Сборка APK
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -49,5 +50,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: vault-app-apk
-          # Обратите внимание: путь изменился, так как мы внутри fresh_build
-          path: fresh_build/android/app/build/outputs/apk/debug/app-debug.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
